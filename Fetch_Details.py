@@ -4,6 +4,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 import sys
+from lxml import html
 
 
 class LicenseDetails:
@@ -51,25 +52,34 @@ class LicenseDetails:
 
         print("Login Success")
         try:
-            values = {
-                'Current_Status': '//*[@id="form_rcdl:j_idt118"]/table[1]/tbody/tr[1]/td[2]/span',
-                'Holder Name': '//*[@id="form_rcdl:j_idt118"]/table[1]/tbody/tr[2]/td[2]',
-                "Date of Issue": '//*[@id="form_rcdl:j_idt118"]/table[1]/tbody/tr[3]/td[2]',
-                "Last Transaction at ": '//*[@id="form_rcdl:j_idt118"]/table[1]/tbody/tr[4]/td[2]',
-                "DL No.": '//*[@id="form_rcdl:j_idt118"]/table[1]/tbody/tr[5]/td[2]',
-                "Non Transport": '//*[@id="form_rcdl:j_idt118"]/table[2]/tbody/tr[1]/td[1]',
-                "Valid From": '//*[@id="form_rcdl:j_idt118"]/table[2]/tbody/tr[1]/td[2]',
-                "Valid To": '//*[@id="form_rcdl:j_idt118"]/table[2]/tbody/tr[1]/td[3]',
-                "COV Category": '//*[@id="form_rcdl:j_idt167_data"]/tr/td[1]',
-                "Class Of Vehicle": '//*[@id="form_rcdl:j_idt167_data"]/tr/td[2]',
-                "COV Issue Date": '//*[@id="form_rcdl:j_idt167_data"]/tr/td[3]'}
+            p = {}
+            src = driver.page_source
+            info_tree = html.fromstring(src)
+            table_1 = info_tree.xpath(
+                "//table[@class='table table-responsive table-striped table-condensed table-bordered']/tbody")[0]
+            p["Status"] = table_1.xpath(".//tr[1]/td[2]/span/text()")[0]
+            name = lambda x: x[0] + " " + x[-1]
+            p["Holder's Name"] = name(table_1.xpath(".//tr[2]/td[2]/text()")[0].split(" "))
+            p["Date Of Issue"] = table_1.xpath(".//tr[3]/td[2]/text()")[0]
+            p["Last Transaction"] = table_1.xpath(".//tr[4]/td[2]/text()")[0]
+            p["Old/New DL"] = table_1.xpath(".//tr[5]/td[2]/text()")[0]
 
-            for key in values:
-                values[key] = driver.find_element_by_xpath(values[key]).text
+            table_2 = info_tree.xpath("//table[@class='table table-responsive table-striped table-condensed table-bordered data-table']/tbody")[0]
+            p["Non Transport Validity From"] = table_2.xpath(".//tr[1]/td[2]/text()")[0]
+            p["Non Transport Validity To"] = table_2.xpath(".//tr[1]/td[3]/text()")[0]
+            p["Transport Validity From"] = table_2.xpath(".//tr[2]/td[2]/text()")[0]
+            p["Transport Validity To"] = table_2.xpath(".//tr[2]/td[3]/text()")[0]
 
-            values["Valid From"] = values["Valid From"].split(":")[1]
-            values["Valid To"] = values["Valid To"].split(":")[1]
-            return values
+            table_3 = info_tree.xpath(
+                "(//table[@class='table table-responsive table-striped table-condensed table-bordered data-table']/tbody/tr)[3]")[0]
+            p[table_3.xpath(".//td[1]/span/text()")[0]] = table_3.xpath(".//td[2]/text()")[0]
+            p[table_3.xpath(".//td[3]/span/text()")[0]] = table_3.xpath(".//td[4]/text()")[0]
+
+
+            p[info_tree.xpath("//span[@class='ui-column-title']/text()")[0]] = info_tree.xpath("//td[@role='gridcell']/text()")[0]
+            p[info_tree.xpath("//span[@class='ui-column-title']/text()")[1]] = info_tree.xpath("//td[@role='gridcell']/text()")[1]
+            p[info_tree.xpath("//span[@class='ui-column-title']/text()")[2]] = info_tree.xpath("//td[@role='gridcell']/text()")[2]
+            return p
 
         except:
             print(sys.exc_info())
